@@ -30,9 +30,10 @@
  * --------------------------------------------------------------------------*/
 static void cmd_help(void);
 static void cmd_clear(void);
-static void cmd_about(void);
 static void cmd_echo(const char *args);
-static void cmd_mem(void);
+static void cmd_version(void);
+static void cmd_colour(const char *args);
+static void cmd_halt(void);
 
 /* ---------------------------------------------------------------------------
  * Utility: minimal string helpers (no libc in a freestanding kernel!)
@@ -110,34 +111,17 @@ static void print_splash(void) {
  * --------------------------------------------------------------------------*/
 static void cmd_help(void) {
     vga_puts_color("\n  SENG21213-OS Shell Commands\n", VGA_YELLOW, VGA_BLACK);
-    vga_puts("  ─────────────────────────────────────────────\n");
-    vga_puts("  help    – Show this help message\n");
-    vga_puts("  clear   – Clear the screen\n");
-    vga_puts("  about   – About this OS and course\n");
-    vga_puts("  echo    – Echo text to screen\n");
-    vga_puts("  mem     – Memory map (stub)\n");
-    vga_puts_color("\n  Milestones (to implement):\n", VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("  ps      – [L09] List processes\n");
-    vga_puts("  kill    – [L09] Terminate a process\n");
-    vga_puts("  threads – [L10] List kernel threads\n");
-    vga_puts("  free    – [L11] Show free memory\n");
-    vga_puts("  ls      – [L12] List files\n");
-    vga_puts("  cat     – [L12] Print file contents\n\n");
+    vga_puts("  ---------------------------------------------\n");
+    vga_puts("  help              - Show this help message\n");
+    vga_puts("  clear             - Clear the screen\n");
+    vga_puts("  echo <text>       - Echo text to screen\n");
+    vga_puts("  version           - Show kernel version\n");
+    vga_puts("  colour <fg> <bg>  - Change text colour (0-15)\n");
+    vga_puts("  halt              - Halt the CPU\n\n");
 }
 
 static void cmd_clear(void) {
     vga_clear(VGA_BLACK);
-}
-
-static void cmd_about(void) {
-    vga_puts_color("\n  About SENG21213-OS\n", VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("  ─────────────────────────────────────────────\n");
-    vga_puts("  Architecture : x86 (i686), 32-bit Protected Mode\n");
-    vga_puts("  Bootloader   : Custom MBR (NASM)\n");
-    vga_puts("  Kernel       : Freestanding C (GCC, no libc)\n");
-    vga_puts("  VM Target    : QEMU (qemu-system-i386)\n");
-    vga_puts("  Course       : SENG 21213 – Sem 2\n");
-    vga_puts("  Reference    : Stallings, OS: Internals & Design Principles\n\n");
 }
 
 static void cmd_echo(const char *args) {
@@ -146,17 +130,63 @@ static void cmd_echo(const char *args) {
     vga_puts("\n");
 }
 
-static void cmd_mem(void) {
-    /* Stage 0 stub – students implement the real PMM in Lecture 11 */
-    vga_puts_color("\n  Memory Map (stub – implement PMM in Lecture 11)\n",
-                   VGA_LIGHT_CYAN, VGA_BLACK);
-    vga_puts("  ─────────────────────────────────────────────\n");
-    vga_puts("  0x00000000 – 0x000FFFFF  :  First 1 MB (reserved/BIOS)\n");
-    vga_puts("  0x00100000 – 0x00EFFFFF  :  Extended memory (usable ~14 MB)\n");
-    vga_puts("  0x00F00000 – 0x00FFFFFF  :  BIOS / ROM area\n");
-    vga_puts("  0xB8000    – 0xBFFFF     :  VGA frame buffer\n");
-    vga_puts_color("\n  TODO: Use BIOS int 0x15, EAX=0xE820 to get real memory map\n\n",
-                   VGA_YELLOW, VGA_BLACK);
+static void cmd_version(void) {
+    vga_puts_color("\n  SENG21213-OS\n", VGA_LIGHT_CYAN, VGA_BLACK);
+    vga_puts("  Version: 0.1 - Stage 0\n");
+    vga_puts("  Architecture: x86 32-bit Protected Mode\n\n");
+}
+
+static void cmd_colour(const char *args) {
+    int fg = -1;
+    int bg = -1;
+
+    /* Read foreground colour */
+    if (args[0] >= '0' && args[0] <= '9') {
+        fg = args[0] - '0';
+
+        if (args[1] >= '0' && args[1] <= '9') {
+            fg = fg * 10 + (args[1] - '0');
+        }
+    }
+
+    /* Skip foreground number */
+    int i = 0;
+    while (args[i] >= '0' && args[i] <= '9') {
+        i++;
+    }
+
+    /* Skip spaces */
+    while (args[i] == ' ') {
+        i++;
+    }
+
+    /* Read background colour */
+    if (args[i] >= '0' && args[i] <= '9') {
+        bg = args[i] - '0';
+        i++;
+
+        if (args[i] >= '0' && args[i] <= '9') {
+            bg = bg * 10 + (args[i] - '0');
+        }
+    }
+
+    if (fg < 0 || fg > 15 || bg < 0 || bg > 15) {
+        vga_puts("  Usage: colour <fg> <bg>  (0-15)\n");
+        return;
+    }
+
+    vga_set_color((vga_color_t)fg, (vga_color_t)bg);
+    vga_puts("  Colour changed.\n");
+}
+
+static void cmd_halt(void) {
+    vga_puts_color("\n  System halted.\n", VGA_YELLOW, VGA_BLACK);
+
+    __asm__ __volatile__("cli");
+
+    while (true) {
+        __asm__ __volatile__("hlt");
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -180,8 +210,10 @@ static void shell_run(void) {
         /* Dispatch */
         if (k_strcmp(cmd, "help")  == 0) { cmd_help();  continue; }
         if (k_strcmp(cmd, "clear") == 0) { cmd_clear(); continue; }
-        if (k_strcmp(cmd, "about") == 0) { cmd_about(); continue; }
-        if (k_strcmp(cmd, "mem")   == 0) { cmd_mem();   continue; }
+        if (k_strcmp(cmd, "version") == 0) { cmd_version(); continue; }
+        if (k_strncmp(cmd, "colour ", 7) == 0) { cmd_colour(k_ltrim(cmd + 7)); continue; }
+        if (k_strcmp(cmd, "halt")    == 0) { cmd_halt();    continue; }
+        
 
         if (k_strncmp(cmd, "echo ", 5) == 0) {
             cmd_echo(k_ltrim(cmd + 5));

@@ -24,6 +24,9 @@
 #include "vga.h"
 #include "keyboard.h"
 #include "../include/types.h"
+#include "../include/idt.h"
+#include "../include/process.h"
+#include "../include/scheduler.h"
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -189,6 +192,65 @@ static void cmd_halt(void) {
     }
 }
 
+static void cmd_ps(void)
+{
+    static const char *states[] = {
+        "UNUSED",
+        "READY",
+        "RUNNING",
+        "BLOCKED",
+        "ZOMBIE"
+    };
+
+    vga_puts("\n");
+    vga_puts("PID  NAME            STATE       TICKS\n");
+    vga_puts("---------------------------------------\n");
+
+    for (int i = 0; i < MAX_PROCS; i++) {
+
+        if (proc_table[i].state == PROC_UNUSED) {
+            continue;
+        }
+
+        vga_printf("%d", proc_table[i].pid);
+
+        if (proc_table[i].pid < 10)
+            vga_puts("    ");
+        else if (proc_table[i].pid < 100)
+            vga_puts("   ");
+        else
+            vga_puts("  ");
+
+        vga_puts(proc_table[i].name);
+
+        int name_len = 0;
+        while (proc_table[i].name[name_len] != '\0') {
+            name_len++;
+        }
+
+        while (name_len < 16) {
+            vga_puts(" ");
+            name_len++;
+        }
+
+        vga_puts(states[proc_table[i].state]);
+
+        int state_len = 0;
+        while (states[proc_table[i].state][state_len] != '\0') {
+            state_len++;
+        }
+
+        while (state_len < 12) {
+            vga_puts(" ");
+            state_len++;
+        }
+
+        vga_printf("%u\n", proc_table[i].ticks);
+    }
+
+    vga_puts("\n");
+}
+
 /* ---------------------------------------------------------------------------
  * Shell process
  * --------------------------------------------------------------------------*/
@@ -212,16 +274,19 @@ static void shell_run(void) {
         if (k_strcmp(cmd, "clear") == 0) { cmd_clear(); continue; }
         if (k_strcmp(cmd, "version") == 0) { cmd_version(); continue; }
         if (k_strncmp(cmd, "colour ", 7) == 0) { cmd_colour(k_ltrim(cmd + 7)); continue; }
-        if (k_strcmp(cmd, "halt")    == 0) { cmd_halt();    continue; }
-        
+        if (k_strcmp(cmd, "halt")    == 0) { cmd_halt();    continue; }       
 
         if (k_strncmp(cmd, "echo ", 5) == 0) {
             cmd_echo(k_ltrim(cmd + 5));
             continue;
         }
+	if (k_strcmp(cmd, "ps") == 0) {
+    	    cmd_ps();
+     	    continue;
+	}
 
         /* Milestone stubs */
-        if (k_strcmp(cmd, "ps")      == 0 ||
+        if (
             k_strcmp(cmd, "kill")    == 0 ||
             k_strcmp(cmd, "threads") == 0 ||
             k_strcmp(cmd, "free")    == 0 ||
@@ -242,12 +307,65 @@ static void shell_run(void) {
 /* ---------------------------------------------------------------------------
  * Kernel entry point – called from kernel_entry.asm
  * --------------------------------------------------------------------------*/
-void kernel_main(void) {
+
+static void idle_process(void)
+{
+    for (;;) {
+        __asm__ __volatile__("hlt");
+    }
+}
+
+static void process_one(void)
+{
+    for (;;) {
+        __asm__ __volatile__("nop");
+    }
+}
+
+static void process_two(void)
+{
+    for (;;) {
+        __asm__ __volatile__("nop");
+    }
+}
+
+void kernel_main(void)
+{
     vga_init();
     kb_init();
+
+    /*
+     * Create the initial process table.
+     *
+     * Process 0 = idle
+     * Process 1 = test process
+     * Process 2 = test process
+     */
+    proc_create("idle", idle_process);
+    proc_create("proc1", process_one);
+    proc_create("proc2", process_two);
+
+    /*
+     * Process 0 starts as the running process.
+     */
+     scheduler_init();
+
+    /*
+    * Initialize IDT, PIC and PIT.
+    */
+    idt_init();
+
+    /*
+    * Enable CPU interrupts.
+    */
+    __asm__ __volatile__("sti");
+
     print_splash();
     shell_run();
 
-    /* Should never reach here */
-    __asm__ __volatile__("hlt");
+    __asm__ __volatile__("cli");
+
+    for (;;) {
+        __asm__ __volatile__("hlt");
+    }
 }

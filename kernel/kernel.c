@@ -318,14 +318,20 @@ static void idle_process(void)
 static void process_one(void)
 {
     for (;;) {
-        __asm__ __volatile__("nop");
+        vga_puts("1");
+        for (volatile uint32_t i = 0; i < 1000000; i++) {
+            __asm__ __volatile__("nop");
+        }
     }
 }
 
 static void process_two(void)
 {
     for (;;) {
-        __asm__ __volatile__("nop");
+        vga_puts("2");
+        for (volatile uint32_t i = 0; i < 1000000; i++) {
+            __asm__ __volatile__("nop");
+        }
     }
 }
 

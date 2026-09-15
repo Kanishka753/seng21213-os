@@ -53,20 +53,38 @@ int thread_create(void (*entry)(void *), void *arg)
             t->tid = next_tid++;
             t->state = THREAD_READY;
             t->entry = entry;
-            t->arg = arg;
+            t->arg  = arg;
 
             t->stack_base = (uint32_t)&thread_stacks[i][0];
 
             uint32_t stack_top =
                 t->stack_base + THREAD_STACK_SIZE;
 
-            stack_top -= 4;
-            *((uint32_t *)stack_top) =
-                (uint32_t)thread_bootstrap;
+            /*
+ 	     * Prepare initial stack for context_switch().
+ 	     *
+ 	     * context_switch() executes:
+ 	     *     popad
+             *     ret
+ 	     *
+ 	     * Therefore the stack must contain:
+    	     *     32 bytes for popad
+   	     *     thread_bootstrap address for ret
+ 	     */
+	    stack_top -= 4;
+	    *((uint32_t *)stack_top) =
+    	        (uint32_t)thread_bootstrap;
 
             stack_top -= 32;
 
-            t->esp = stack_top;
+	    /*
+ 	     * Clear the saved registers.
+ 	     */
+	    for (int j = 0; j < 8; j++) {
+    	        ((uint32_t *)stack_top)[j] = 0;
+            }
+
+	    t->esp = stack_top;
 
             return t->tid;
         }

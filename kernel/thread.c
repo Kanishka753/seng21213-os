@@ -2,6 +2,8 @@
 #include "../include/process.h"
 #include "vga.h"
 
+extern void context_switch(uint32_t *old_esp, uint32_t new_esp);
+
 thread_t thread_table[MAX_THREADS];
 int current_thread = 0;
 
@@ -11,6 +13,8 @@ static int next_tid = 0;
 static void thread_bootstrap(void)
 {
     thread_t *t = &thread_table[current_thread];
+
+    t->state = THREAD_RUNNING;
 
     __asm__ __volatile__("sti");
 
@@ -73,11 +77,37 @@ int thread_create(void (*entry)(void *), void *arg)
 
 void thread_yield(void)
 {
+    int old_thread = current_thread;
+    int next_thread = -1;
+
     /*
-     * Initial implementation.
-     * Thread scheduling will be connected to the
-     * existing scheduler in the next step.
+     * Find the next READY thread using round-robin order.
      */
+    for (int i = 1; i <= MAX_THREADS; i++) {
+        int index = (old_thread + i) % MAX_THREADS;
+
+        if (thread_table[index].state == THREAD_READY) {
+            next_thread = index;
+            break;
+        }
+    }
+
+    /*
+     * No other READY thread found.
+     */
+    if (next_thread == -1) {
+        return;
+    }
+
+    thread_table[old_thread].state = THREAD_READY;
+    thread_table[next_thread].state = THREAD_RUNNING;
+
+    current_thread = next_thread;
+
+    context_switch(
+        &thread_table[old_thread].esp,
+        thread_table[next_thread].esp
+    );
 }
 
 void thread_exit(void)

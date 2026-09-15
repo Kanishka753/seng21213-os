@@ -123,7 +123,8 @@ static void cmd_help(void) {
     vga_puts("  echo <text>       - Echo text to screen\n");
     vga_puts("  version           - Show kernel version\n");
     vga_puts("  colour <fg> <bg>  - Change text colour (0-15)\n");
-    vga_puts("  halt              - Halt the CPU\n\n");
+    vga_puts("  halt              - Halt the CPU\n");
+    vga_puts("  runthreads        - Run kernel threads continuously\n\n");
 }
 
 static void cmd_clear(void) {
@@ -292,6 +293,14 @@ static void shell_run(void) {
             continue;
         }
 
+	if (k_strcmp(cmd, "runthreads") == 0) {
+    	    vga_puts("Starting continuous thread test...\n");
+
+            while (1) {
+        	thread_yield();
+    	    }
+	}
+
         /* Milestone stubs */
         if (
             k_strcmp(cmd, "kill")    == 0 ||
@@ -452,6 +461,13 @@ void kernel_main(void)
     __asm__ __volatile__("sti");
 
     print_splash();
+
+    vga_puts("\nStarting kernel threads...\n");
+
+    for (volatile int i = 0; i < 1000000; i++);
+
+    thread_yield();
+
     shell_run();
 
     __asm__ __volatile__("cli");

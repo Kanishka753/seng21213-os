@@ -40,8 +40,19 @@ void thread_init(void)
         thread_table[i].stack_base = 0;
     }
 
+    /*
+     * Reserve thread 0 for the current kernel/shell context.
+     *
+     * The kernel is already running before worker threads are created.
+     * Therefore, thread 0 does not need a new stack.
+     */
+    thread_table[0].tid = 0;
+    thread_table[0].state = THREAD_RUNNING;
+    thread_table[0].entry = NULL;
+    thread_table[0].arg = NULL;
+
     current_thread = 0;
-    next_tid = 0;
+    next_tid = 1;
 }
 
 int thread_create(void (*entry)(void *), void *arg)

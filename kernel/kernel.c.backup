@@ -24,7 +24,6 @@
 #include "vga.h"
 #include "keyboard.h"
 #include "../include/types.h"
-#include "../include/pmm.h"
 #include "../include/idt.h"
 #include "../include/process.h"
 #include "../include/scheduler.h"
@@ -130,10 +129,7 @@ static void cmd_help(void) {
     vga_puts("  version           - Show kernel version\n");
     vga_puts("  colour <fg> <bg>  - Change text colour (0-15)\n");
     vga_puts("  halt              - Halt the CPU\n");
-    vga_puts("  runthreads        - Run kernel threads continuously\n");
-    vga_puts("  mem               - Show physical memory information\n\n");
-    vga_puts("  meminfo           - Show total / used / free memory\n");
-
+    vga_puts("  runthreads        - Run kernel threads continuously\n\n");
 }
 
 static void cmd_clear(void) {
@@ -302,28 +298,6 @@ static void shell_run(void) {
             continue;
         }
 
-        if (k_strcmp(cmd, "meminfo") == 0 ||
-            k_strcmp(cmd, "mem") == 0) {
-            vga_puts("\nPhysical Memory Information\n");
-            vga_puts("--------------------------\n");
-
-            vga_printf("Total frames: %u\n", pmm_total_frames());
-            vga_printf("Used frames:  %u\n", pmm_used_frames());
-            vga_printf("Free frames:  %u\n", pmm_free_frames());
-
-            vga_printf("Total memory: %u MB\n",
-                       (pmm_total_frames() * PAGE_SIZE) / (1024U * 1024U));
-
-            vga_printf("Used memory: %u MB\n",
-                       (pmm_used_frames() * PAGE_SIZE) / (1024U * 1024U));
-
-            vga_printf("Free memory: %u MB\n",
-                       (pmm_free_frames() * PAGE_SIZE) / (1024U * 1024U));
-
-            vga_puts("\n");
-            continue;
-        }
-
 	if (k_strcmp(cmd, "runthreads") == 0) {
     	    vga_puts("Starting continuous thread test...\n");
 
@@ -347,7 +321,6 @@ static void shell_run(void) {
         vga_puts_color("  Unknown command: ", VGA_LIGHT_RED, VGA_BLACK);
         vga_puts(cmd);
         vga_puts("\n  Type 'help' for a list of commands.\n");
-        
     }
 }
 
@@ -476,14 +449,6 @@ static void thread_two(void *arg)
 
 void kernel_main(void)
 {
-    pmm_init(32U * 1024U * 1024U);
-    
-    if (pmm_test()) {
-        vga_puts("PMM test: PASS\n");
-    } else {
-        vga_puts("PMM test: FAIL\n");
-    }
-
     vga_init();
     kb_init();
 

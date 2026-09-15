@@ -27,6 +27,9 @@
 #include "../include/idt.h"
 #include "../include/process.h"
 #include "../include/scheduler.h"
+#include "../include/thread.h"
+
+static void show_threads(void);
 
 /* ---------------------------------------------------------------------------
  * Forward declarations of shell commands
@@ -284,11 +287,14 @@ static void shell_run(void) {
     	    cmd_ps();
      	    continue;
 	}
+	if (k_strcmp(cmd, "threads") == 0) {
+            show_threads();
+            continue;
+        }
 
         /* Milestone stubs */
         if (
             k_strcmp(cmd, "kill")    == 0 ||
-            k_strcmp(cmd, "threads") == 0 ||
             k_strcmp(cmd, "free")    == 0 ||
             k_strcmp(cmd, "ls")      == 0 ||
             k_strcmp(cmd, "cat")     == 0) {
@@ -327,6 +333,88 @@ void process_two(void) {
     }
 }
 
+static void show_threads(void)
+{
+    vga_puts("TID   STATE\n");
+    vga_puts("----------------\n");
+
+    for (int i = 0; i < MAX_THREADS; i++) {
+        if (thread_table[i].state == THREAD_UNUSED) {
+            continue;
+        }
+
+        vga_puts("Thread ");
+
+        if (thread_table[i].tid == 0) {
+            vga_puts("0");
+        } else if (thread_table[i].tid == 1) {
+            vga_puts("1");
+        } else if (thread_table[i].tid == 2) {
+            vga_puts("2");
+        } else if (thread_table[i].tid == 3) {
+            vga_puts("3");
+        } else if (thread_table[i].tid == 4) {
+            vga_puts("4");
+        } else if (thread_table[i].tid == 5) {
+            vga_puts("5");
+        } else if (thread_table[i].tid == 6) {
+            vga_puts("6");
+        } else if (thread_table[i].tid == 7) {
+            vga_puts("7");
+        }
+
+        vga_puts("  ");
+
+        switch (thread_table[i].state) {
+            case THREAD_READY:
+                vga_puts("READY");
+                break;
+
+            case THREAD_RUNNING:
+                vga_puts("RUNNING");
+                break;
+
+            case THREAD_BLOCKED:
+                vga_puts("BLOCKED");
+                break;
+
+            case THREAD_FINISHED:
+                vga_puts("FINISHED");
+                break;
+
+            default:
+                vga_puts("UNKNOWN");
+                break;
+        }
+
+        vga_puts("\n");
+    }
+}
+
+static void thread_one(void *arg)
+{
+    (void)arg;
+
+    while (1) {
+        vga_puts_color("T1 ", VGA_LIGHT_GREEN, VGA_BLACK);
+
+        for (volatile int i = 0; i < 1000000; i++);
+        thread_yield();
+    }
+}
+
+static void thread_two(void *arg)
+{
+    (void)arg;
+
+    while (1) {
+        vga_puts_color("T2 ", VGA_LIGHT_CYAN, VGA_BLACK);
+
+        for (volatile int i = 0; i < 1000000; i++);
+        thread_yield();
+    }
+}
+
 void kernel_main(void)
 {
     vga_init();
@@ -351,6 +439,11 @@ void kernel_main(void)
     /*
     * Initialize IDT, PIC and PIT.
     */
+    
+    thread_init();
+    thread_create(thread_one, NULL);
+    thread_create(thread_two, NULL);
+
     idt_init();
 
     /*

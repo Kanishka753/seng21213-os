@@ -3,8 +3,12 @@
 
 #include "types.h"
 
+#define SEM_MAX_WAITERS 8
+
 typedef struct {
     volatile int value;
+    int waiters[SEM_MAX_WAITERS];
+    int wait_count;
 } semaphore_t;
 
 void sem_init(semaphore_t *sem, int value);

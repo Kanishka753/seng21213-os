@@ -125,6 +125,7 @@ void thread_yield(void)
      * No other READY thread found.
      */
     if (next_thread == -1) {
+        thread_table[old_thread].state = THREAD_RUNNING;
         return;
     }
 
@@ -142,4 +143,23 @@ void thread_yield(void)
 void thread_exit(void)
 {
     thread_table[current_thread].state = THREAD_FINISHED;
+}
+void thread_block(void)
+{
+    int tid = current_thread;
+
+    thread_table[tid].state = THREAD_BLOCKED;
+
+    thread_yield();
+}
+
+void thread_unblock(int tid)
+{
+    if (tid < 0 || tid >= MAX_THREADS) {
+        return;
+    }
+
+    if (thread_table[tid].state == THREAD_BLOCKED) {
+        thread_table[tid].state = THREAD_READY;
+    }
 }

@@ -32,5 +32,7 @@ void thread_init(void);
 int thread_create(void (*entry)(void *), void *arg);
 void thread_yield(void);
 void thread_exit(void);
+void thread_block(void);
+void thread_unblock(int tid);
 
 #endif

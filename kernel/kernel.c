@@ -28,6 +28,11 @@
 #include "../include/process.h"
 #include "../include/scheduler.h"
 #include "../include/thread.h"
+#include "../include/mutex.h"
+#include "../include/semaphore.h"
+
+static mutex_t demo_mutex;
+static semaphore_t demo_semaphore;
 
 static void show_threads(void);
 
@@ -405,9 +410,18 @@ static void thread_one(void *arg)
     (void)arg;
 
     while (1) {
-        vga_puts_color("T1 ", VGA_LIGHT_GREEN, VGA_BLACK);
+        mutex_lock(&demo_mutex);
+
+        vga_puts_color("T1 working\n",
+                       VGA_LIGHT_GREEN,
+                       VGA_BLACK);
+
+        mutex_unlock(&demo_mutex);
+
+        sem_signal(&demo_semaphore);
 
         for (volatile int i = 0; i < 1000000; i++);
+
         thread_yield();
     }
 }
@@ -417,9 +431,18 @@ static void thread_two(void *arg)
     (void)arg;
 
     while (1) {
-        vga_puts_color("T2 ", VGA_LIGHT_CYAN, VGA_BLACK);
+        sem_wait(&demo_semaphore);
+
+        mutex_lock(&demo_mutex);
+
+        vga_puts_color("T2 received semaphore\n",
+                       VGA_LIGHT_CYAN,
+                       VGA_BLACK);
+
+        mutex_unlock(&demo_mutex);
 
         for (volatile int i = 0; i < 1000000; i++);
+
         thread_yield();
     }
 }
@@ -449,6 +472,9 @@ void kernel_main(void)
     * Initialize IDT, PIC and PIT.
     */
     
+    mutex_init(&demo_mutex);
+    sem_init(&demo_semaphore, 0);
+
     thread_init();
     thread_create(thread_one, NULL);
     thread_create(thread_two, NULL);

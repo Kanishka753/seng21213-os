@@ -3,8 +3,12 @@
 
 #include "types.h"
 
+#define MUTEX_MAX_WAITERS 8
+
 typedef struct {
     volatile int locked;
+    int waiters[MUTEX_MAX_WAITERS];
+    int wait_count;
 } mutex_t;
 
 void mutex_init(mutex_t *mutex);

@@ -1,0 +1,40 @@
+  [AS]  kernel/kernel_entry.asm
+nasm -f elf32 kernel/kernel_entry.asm -o build/kernel_entry.o
+  [AS]  boot/isr.asm
+nasm -f elf32 boot/isr.asm -o build/isr.o
+  [AS]  boot/switch.asm
+nasm -f elf32 boot/switch.asm -o build/switch.o
+  [CC]  kernel/kernel.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/kernel.c -o build/kernel.o
+  [CC]  kernel/vga.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/vga.c -o build/vga.o
+  [CC]  kernel/keyboard.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/keyboard.c -o build/keyboard.o
+  [CC]  kernel/pmm.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/pmm.c -o build/pmm.o
+  [CC]  kernel/process.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/process.c -o build/process.o
+  [CC]  kernel/idt.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/idt.c -o build/idt.o
+  [CC]  kernel/scheduler.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/scheduler.c -o build/scheduler.o
+  [CC]  kernel/thread.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/thread.c -o build/thread.o
+  [CC]  kernel/mutex.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/mutex.c -o build/mutex.o
+  [CC]  kernel/semaphore.c
+gcc -m32 -ffreestanding -fno-stack-protector -fno-pie -nostdlib -Wall -Wextra -O2 -I./include -c kernel/semaphore.c -o build/semaphore.o
+  [LD]  build/kernel.elf
+ld -m elf_i386 -nostdlib -T linker.ld build/kernel_entry.o build/isr.o build/switch.o  build/kernel.o  build/vga.o  build/keyboard.o  build/pmm.o  build/process.o  build/idt.o  build/scheduler.o  build/thread.o  build/mutex.o  build/semaphore.o -o build/kernel.elf
+/usr/bin/x86_64-linux-gnu-ld.bfd: warning: build/kernel.elf has a LOAD segment with RWX permissions
+  [OBJCOPY] build/kernel.bin
+objcopy -O binary build/kernel.elf build/kernel.bin
+  [IMG]  Creating seng21213-os.img...
+dd if=/dev/zero  bs=512 count=2880 of=seng21213-os.img 2>/dev/null
+dd if=boot/boot.bin    conv=notrunc bs=512 count=1    of=seng21213-os.img 2>/dev/null
+dd if=build/kernel.bin  conv=notrunc bs=512 seek=1     of=seng21213-os.img 2>/dev/null
+  [IMG]  seng21213-os.img ready (11053 kernel bytes)
+
+  ✓  Build successful → seng21213-os.img
+  →  Run with:  make run
+

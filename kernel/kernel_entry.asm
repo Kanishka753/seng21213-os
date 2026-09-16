@@ -12,6 +12,10 @@
 _start:
     ; The bootloader already set up segments and a stack at 0x90000.
     ; We just call the C kernel main function.
+    ; Pass E820 map pointer and entry count to kernel_main()
+    ; C calling convention: push arguments right-to-left.
+    push ebx
+    push eax
     call kernel_main
 
     ; If kernel_main ever returns, halt the CPU permanently.

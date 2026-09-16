@@ -23,6 +23,7 @@
 
 #include "vga.h"
 #include "keyboard.h"
+#include "pmm.h"
 #include "../include/types.h"
 #include "../include/pmm.h"
 #include "../include/idt.h"
@@ -488,9 +489,10 @@ static void thread_two(void *arg)
     }
 }
 
-void kernel_main(void)
+void kernel_main(const e820_entry_t *e820_entries,
+                 uint32_t e820_count)
 {
-    pmm_init(32U * 1024U * 1024U);
+    pmm_init_from_e820(e820_entries, e820_count);
     
     if (pmm_test()) {
         vga_puts("PMM test: PASS\n");

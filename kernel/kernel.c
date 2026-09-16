@@ -133,7 +133,20 @@ static void cmd_help(void) {
     vga_puts("  runthreads        - Run kernel threads continuously\n");
     vga_puts("  mem               - Show physical memory information\n\n");
     vga_puts("  meminfo           - Show total / used / free memory\n");
+    vga_puts("  pmmtest           - Test physical memory allocator\n");
+}
+static void cmd_pmmtest(void) {
+    vga_puts("\nRunning PMM test...\n");
 
+    if (pmm_test()) {
+        vga_puts_color("PMM test PASSED\n",
+                       VGA_LIGHT_GREEN, VGA_BLACK);
+    } else {
+        vga_puts_color("PMM test FAILED\n",
+                       VGA_LIGHT_RED, VGA_BLACK);
+    }
+
+    vga_puts("\n");
 }
 
 static void cmd_clear(void) {
@@ -288,6 +301,7 @@ static void shell_run(void) {
         if (k_strcmp(cmd, "version") == 0) { cmd_version(); continue; }
         if (k_strncmp(cmd, "colour ", 7) == 0) { cmd_colour(k_ltrim(cmd + 7)); continue; }
         if (k_strcmp(cmd, "halt")    == 0) { cmd_halt();    continue; }       
+        if (k_strcmp(cmd, "pmmtest") == 0) { cmd_pmmtest(); continue; }
 
         if (k_strncmp(cmd, "echo ", 5) == 0) {
             cmd_echo(k_ltrim(cmd + 5));

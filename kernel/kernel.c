@@ -32,6 +32,7 @@
 #include "../include/thread.h"
 #include "../include/mutex.h"
 #include "../include/semaphore.h"
+#include "../include/fs.h"
 
 static mutex_t demo_mutex;
 static semaphore_t demo_semaphore;
@@ -209,6 +210,32 @@ static void cmd_colour(const char *args) {
     vga_puts("  Colour changed.\n");
 }
 
+static void cmd_ls(void)
+{
+    fs_list();
+}
+
+static void cmd_touch(const char *args)
+{
+    const char *name = k_ltrim(args);
+
+    if (k_strlen(name) == 0)
+    {
+        vga_puts("Usage: touch <filename>\n");
+        return;
+    }
+
+    if (fs_open(name) < 0)
+    {
+        vga_puts("Error: could not create file.\n");
+        return;
+    }
+
+    vga_puts("File created: ");
+    vga_puts(name);
+    vga_puts("\n");
+}
+
 static void cmd_halt(void) {
     vga_puts_color("\n  System halted.\n", VGA_YELLOW, VGA_BLACK);
 
@@ -348,11 +375,20 @@ static void shell_run(void) {
 	}
 
         /* Milestone stubs */
+        if (k_strcmp(cmd, "ls") == 0) {
+            cmd_ls();
+            continue;
+        }
+        if (k_strncmp(cmd, "touch ", 6) == 0)
+        {
+            cmd_touch(k_ltrim(cmd + 6));
+            continue;
+        }
+
         if (
-            k_strcmp(cmd, "kill")    == 0 ||
-            k_strcmp(cmd, "free")    == 0 ||
-            k_strcmp(cmd, "ls")      == 0 ||
-            k_strcmp(cmd, "cat")     == 0) {
+            k_strcmp(cmd, "kill") == 0 ||
+            k_strcmp(cmd, "free") == 0 ||
+            k_strcmp(cmd, "cat") == 0) {
             vga_puts_color("  [TODO] This command is not yet implemented.\n",
                            VGA_YELLOW, VGA_BLACK);
             vga_puts("  Implement it as part of your lecture assignment.\n");
@@ -502,6 +538,7 @@ void kernel_main(const e820_entry_t *e820_entries,
 
     vga_init();
     kb_init();
+    /* fs_init(); */
 
     /*
      * Create the initial process table.

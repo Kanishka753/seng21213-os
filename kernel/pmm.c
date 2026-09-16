@@ -36,8 +36,8 @@ void pmm_init(uint32_t memory_size)
     total_frames_count = memory_size / PAGE_SIZE;
     used_frames_count = 0;
 
-    for (frame = 0; frame < total_frames_count; frame++) {
-        clear_frame(frame);
+    for (frame = 0; frame < BITMAP_SIZE * 8U; frame++) {
+        frame_bitmap[frame / 8U] = 0;
     }
 
     reserved_frames = (1024U * 1024U) / PAGE_SIZE;
@@ -56,7 +56,6 @@ uint32_t pmm_alloc_frame(void)
         if (!is_frame_used(frame)) {
             set_frame(frame);
             used_frames_count++;
-
             return frame * PAGE_SIZE;
         }
     }
@@ -68,11 +67,8 @@ void pmm_free_frame(uint32_t physical_address)
 {
     uint32_t frame;
 
-    if (physical_address == 0) {
-        return;
-    }
-
-    if ((physical_address % PAGE_SIZE) != 0) {
+    if (physical_address == 0 ||
+        (physical_address % PAGE_SIZE) != 0) {
         return;
     }
 

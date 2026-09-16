@@ -48,6 +48,8 @@ static void cmd_echo(const char *args);
 static void cmd_version(void);
 static void cmd_colour(const char *args);
 static void cmd_halt(void);
+static void cmd_cat(const char *name);
+static void cmd_write(const char *args);
 
 /* ---------------------------------------------------------------------------
  * Utility: minimal string helpers (no libc in a freestanding kernel!)
@@ -136,6 +138,12 @@ static void cmd_help(void) {
     vga_puts("  mem               - Show physical memory information\n\n");
     vga_puts("  meminfo           - Show total / used / free memory\n");
     vga_puts("  pmmtest           - Test physical memory allocator\n");
+    vga_puts("  ls                - List files\n");
+    vga_puts("  touch <name>      - Create a file\n");
+    vga_puts("  rm <name>         - Delete a file\n");
+    vga_puts("  cat <name>       - Read a file\n");
+    vga_puts("  write <name> <text> - Write text to a file\n");
+
 }
 static void cmd_pmmtest(void) {
     vga_puts("\nRunning PMM test...\n");
@@ -246,6 +254,89 @@ static void cmd_halt(void) {
     }
 }
 
+static void cmd_cat(const char *name)
+{
+    char buffer[256];
+    int fd;
+    int bytes_read;
+
+    if (k_strlen(name) == 0) {
+        vga_puts("Usage: cat <name>\n");
+        return;
+    }
+
+    fd = fs_open(name);
+
+    if (fd < 0) {
+        vga_puts("File not found.\n");
+        return;
+    }
+
+    bytes_read = fs_read(fd, buffer, sizeof(buffer) - 1);
+
+    if (bytes_read < 0) {
+        vga_puts("Read failed.\n");
+        fs_close(fd);
+        return;
+    }
+
+    buffer[bytes_read] = '\0';
+
+    vga_puts(buffer);
+    vga_puts("\n");
+
+    fs_close(fd);
+}
+
+static void cmd_write(const char *args)
+{
+    char name[FS_NAME_SIZE];
+    const char *text;
+    int i;
+    int fd;
+    int bytes_written;
+
+    i = 0;
+
+    while (args[i] != '\0' && args[i] != ' ' &&
+           i < FS_NAME_SIZE - 1) {
+        name[i] = args[i];
+        i++;
+    }
+
+    name[i] = '\0';
+
+    while (args[i] == ' ') {
+        i++;
+    }
+
+    text = args + i;
+
+    if (name[0] == '\0' || text[0] == '\0') {
+        vga_puts("Usage: write <name> <text>\n");
+        return;
+    }
+
+    fd = fs_open(name);
+
+    if (fd < 0) {
+        vga_puts("Could not open file.\n");
+        return;
+    }
+
+    bytes_written = fs_write(fd, text, k_strlen(text));
+
+    if (bytes_written < 0) {
+        vga_puts("Write failed.\n");
+    } else {
+        vga_puts("File written: ");
+        vga_puts(name);
+        vga_puts("\n");
+    }
+
+    fs_close(fd);
+}
+
 static void cmd_ps(void)
 {
     static const char *states[] = {
@@ -343,6 +434,38 @@ static void shell_run(void) {
             show_threads();
             continue;
         }
+        if (k_strncmp(cmd, "write ", 6) == 0) {
+            cmd_write(k_ltrim(cmd + 6));
+            continue;
+        }
+
+        if (k_strncmp(cmd, "cat ", 4) == 0) {
+            cmd_cat(k_ltrim(cmd + 4));
+            continue;
+        }
+
+        if (k_strcmp(cmd, "ls") == 0) {
+            fs_list();
+            continue;
+        }
+
+        if (k_strncmp(cmd, "rm ", 3) == 0) {
+            const char *name = k_ltrim(cmd + 3);
+
+            if (k_strlen(name) == 0) {
+                vga_puts("Usage: rm <name>\n");
+            } else if (fs_unlink(name) == 0) {
+                vga_puts("File deleted: ");
+                vga_puts(name);
+                vga_puts("\n");
+            } else {
+                vga_puts("File not found: ");
+                vga_puts(name);
+                vga_puts("\n");
+            }
+
+            continue;
+        }
 
         if (k_strcmp(cmd, "meminfo") == 0 ||
             k_strcmp(cmd, "mem") == 0) {
@@ -387,8 +510,7 @@ static void shell_run(void) {
 
         if (
             k_strcmp(cmd, "kill") == 0 ||
-            k_strcmp(cmd, "free") == 0 ||
-            k_strcmp(cmd, "cat") == 0) {
+            k_strcmp(cmd, "free") == 0) {
             vga_puts_color("  [TODO] This command is not yet implemented.\n",
                            VGA_YELLOW, VGA_BLACK);
             vga_puts("  Implement it as part of your lecture assignment.\n");
@@ -538,7 +660,7 @@ void kernel_main(const e820_entry_t *e820_entries,
 
     vga_init();
     kb_init();
-    /* fs_init(); */
+    /*fs_init();*/
 
     /*
      * Create the initial process table.
